@@ -1,0 +1,449 @@
+---
+title: "Unsupervised Player Clustering in R with Tidymodels and Plotly"
+author: "Winnie Shi"
+format: html
+execute:
+  echo: true
+---
+
+**Learning objectives**
+
+By the end of this tutorial, you will be able to:
+
+- Load and explore CS2 match player statistics in R.
+- Select and preprocess numeric features for clustering.
+- Perform k-means clustering using tidymodels-style preprocessing.
+- Use PCA to visualize players in two dimensions.
+- Build several **interactive plotly visualizations** step by step (raw stats, PCA space, and clusters).
+- Interpret and summarize cluster “player types”.
+
+---
+
+# Setup and Packages
+
+We start by loading the packages we will use throughout the tutorial.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(plotly)
+```
+
+Set a seed for reproducibility so that random steps (like k-means initialization) give the same results each time.
+
+```{r, message=FALSE}
+set.seed(123)
+tidymodels_prefer()
+```
+
+---
+
+# Loading and Inspecting the Data
+
+Our dataset is stored in a CSV file called `match_players.csv`. Each row represents one player’s statistics for a single match.
+
+```{r, message=FALSE}
+players = readr::read_csv("match_players.csv")
+```
+
+Select the first 500 rows: 
+
+```{r}
+players = players %>% head(500)
+```
+
+You should see:
+
+- **ID / context columns**: `match_id`, `player_id`, `player_name`, `team`, `role`, etc.
+- **Performance statistics**: `kills`, `deaths`, `assists`, `headshot_kills`, `damage`, `utility_damage`, `adr` (average damage per round), `hsp` (headshot percentage), `rounds_survived`, `survival_rate`, `first_kills`, `clutches_won`, `smokes_thrown`, `flashes_thrown`, `he_thrown`, `molotovs_thrown`, `avg_cash_spent_per_round`, `avg_equipment_value_per_round`, `performance_score`, and more.
+- A `won_match` column indicating whether the player’s team won the match (logical/boolean).
+
+Before clustering, we extract only the numeric gameplay statistics that meaningfully describe how a player performs (kills, ADR, flashes thrown, etc.). We drop rows with missing values to ensure PCA and k-means run smoothly, standardize all variables to the same scale, and then apply PCA to reduce the high-dimensional feature set into two principal components (PC1, PC2). These cleaned and scaled features form the basis of our unsupervised player-style analysis.
+
+```{r, message=FALSE}
+# 1. select numeric variables
+num_vars <- c(
+  "kills", "deaths", "assists", "headshot_kills",
+  "damage", "utility_damage", "enemies_flashed", "flash_assists",
+  "adr", "hsp", "rounds_survived", "survival_rate",
+  "first_kills", "first_deaths", "clutches_attempted", "clutches_won",
+  "multi_kill_rounds", "smokes_thrown", "flashes_thrown",
+  "he_thrown", "molotovs_thrown",
+  "avg_cash_spent_per_round", "avg_equipment_value_per_round",
+  "performance_score"
+)
+
+players_numeric <- players %>%
+  select(all_of(num_vars)) %>%
+  drop_na()
+
+# 2. build recipe
+rec <- recipe(~ ., data = players_numeric) %>%
+  step_normalize(all_numeric_predictors())
+
+# 3. prep & bake
+rec_prep <- prep(rec)
+
+players_scaled <- bake(rec_prep, new_data = NULL)
+
+# 4. PCA
+pca_res <- prcomp(players_scaled, center = FALSE, scale. = FALSE)
+
+pca_scores <- as_tibble(pca_res$x[, 1:2])  # keep top 2 PCs
+colnames(pca_scores) <- c("PC1", "PC2")
+players_pca <- players %>%
+  drop_na(all_of(num_vars)) %>%  # must match scaled rows
+  bind_cols(pca_scores)
+```
+
+## Excercise 1
+Now we create a **first look** at the player distribution in PCA space using ggplot:
+```{r}
+ggplot(players_pca, aes(x = PC1, y = PC2)) +
+  geom_point(alpha=0.6) +
+  labs(
+    title = "Players in PCA Space (No Clusters Yet)",
+    x = "PC1",
+    y = "PC2"
+  ) +
+  theme_minimal()
+```
+
+```{r eval=FALSE}
+#TODO: Store the graph as p
+```
+
+The plotly package can easily turn ggplot-graphs to interactive by wrapping ggplotly around the plot
+```{r eval=FALSE}
+#TODO: fill in the blank
+ggplotly(___)
+```
+
+## Excercise 2
+To adjust more details, you can also use plotly directly to draw from scratch: 
+```{r eval=FALSE}
+# TODO: fill in the blank
+plot_ly(
+  data = ___,
+  x = ~___,
+  y = ~___
+)
+```
+
+```{r echo=FALSE}
+# answer
+plot_ly(
+  data = players_pca,
+  x = ~PC1,
+  y = ~PC2
+)
+```
+
+Similar to ggplot, we use 
+- marker in plot_ly() to adjust point appearance (size, color, opacity)
+- layout() to add titles and axis labels
+- text argument in plot_ly() to show custom information when hovering over each point.
+- color to color the dots
+
+## Excercise 3
+```{r eval=FALSE}
+plot_ly(
+  data = players_pca,
+  x = ~PC1, y = ~PC2,
+  type = "scatter",
+  mode = "markers",
+  # TODO: pick a size and opacity
+  marker = list(size = ___, opacity = ___),
+  # TODO: map color to performance_score 
+  color = ~___,
+  #TODO: show player_name and kills when hover
+  text = ~paste("Player:", ___,
+                "<br>Kills:", ___)) %>%
+  plotly::layout(
+    # TODO: complete the layout
+    title = ___,
+    xaxis = list(title = "PC1"),
+    yaxis = ___(title = "PC2")
+  )
+```
+
+Here's a sample of what a graph can look like
+```{r}
+plot_ly(
+  data = players_pca,
+  x = ~PC1, y = ~PC2,
+  type = "scatter",
+  mode = "markers",
+  marker = list(size = 6, opacity = 0.6),
+  color = ~performance_score,
+  text = ~paste("Player:", player_name,
+                "<br>Team:", team,
+                "<br>Kills:", kills,
+                "<br>ADR:", adr,
+                "<br>Perf Score:", performance_score)
+) %>%
+  plotly::layout(
+    title = "Players in PCA Space (No Clusters Yet)",
+    xaxis = list(title = "PC1"),
+    yaxis = list(title = "PC2")
+  )
+```
+
+At this stage, the points are not clustered yet; we are only exploring how players spread out along the main variation axes.
+
+# k-Means Clustering
+
+Next, we apply **k-means clustering** on the standardized feature space (`players_scaled`).
+
+A bit of refreshing: 
+
+- k-means tries to partition the data into **k clusters**.
+- Each cluster has a **centroid** (mean position).
+- Each player is assigned to the nearest centroid.
+- We must choose the number of clusters `k`.
+
+```{r}
+# Pick a number for k
+k = 4
+
+km = kmeans(as.matrix(players_scaled), centers = k, nstart = 25)
+
+cluster_assignments = km$cluster
+
+players_pca_clusters = players_pca %>%
+  mutate(cluster = factor(cluster_assignments))
+```
+
+---
+
+# Interactive Cluster Visualization with Plotly
+
+## Excercise 4
+
+Now that each player has a cluster assignment, we can visualize the clusters in PCA space with plotly.
+```{r eval=FALSE}
+plot_ly(
+  data = players_pca_clusters,
+  x = ~_____,        # TODO: Insert the PCA component for the x-axis
+  y = ~_____,        # TODO: Insert the PCA component for the y-axis
+  color = ~_____,    # TODO: Color points by cluster
+  type = "scatter",
+  mode = "markers",
+  marker = list(
+    size = ___,      # TODO: Choose a marker size
+    opacity = ___    # TODO: Choose a transparency level (0–1)
+  ),
+  text = ~paste(
+    "Player:", _______,         # TODO: Insert player_name
+    "<br>Team:", _______,       # TODO: Insert team
+    "<br>Kills:", _______,      # TODO: Insert kills
+    "<br>Deaths:", _______,     # TODO: Insert deaths
+    "<br>ADR:", _______,        # TODO: Insert adr
+    "<br>Perf Score:", _______  # TODO: Insert performance_score
+  ),
+  hoverinfo = "text"
+) %>%
+  layout(
+    title = "Player Clusters in PCA Space",
+    xaxis = list(title = "_____"),   # TODO: Label the x-axis
+    yaxis = list(title = "_____"),   # TODO: Label the y-axis
+    legend = list(title = list(text = "_____"))  # TODO: Set legend title
+  )
+```
+
+```{r}
+# answer
+plot_ly(
+  data = players_pca_clusters,
+  x = ~PC1, y = ~PC2,
+  color = ~cluster,
+  type = "scatter",
+  mode = "markers",
+  marker = list(size = 7, opacity = 0.7),
+  text = ~paste(
+    "Player:", player_name,
+    "<br>Team:", team,
+    "<br>Kills:", kills,
+    "<br>Deaths:", deaths,
+    "<br>ADR:", adr,
+    "<br>Perf Score:", performance_score
+  ),
+  hoverinfo = "text"
+) %>%
+  plotly::layout(
+    title = "Player Clusters in PCA Space",
+    xaxis = list(title = "PC1"),
+    yaxis = list(title = "PC2"),
+    legend = list(title = list(text = "Cluster"))
+  )
+```
+
+**How to interpret this plot**
+
+- Points close together have similar performance profiles (in the standardized feature space).
+- Colors represent different clusters (candidate player “types”).
+- Tight, well-separated groups suggest distinct playstyles.
+- Overlaps between clusters may indicate more continuous transitions or ambiguous roles.
+- Outliers (points far from others) may represent unique players or noisy data.
+
+Hover over points to inspect individual players and get a sense of what each cluster looks like.
+
+---
+
+
+Now, we wanna practice how to: 
+	-	Split a dataset into training and testing sets
+	-	Attach split labels back onto the full dataset
+	-	Visualize the split using different colors and symbols in Plotly
+	
+First, we need to tune the data into training and testing datasets.
+```{r }
+#Split the PCA dataset into 75% training and 25% testing
+players_pca_split <- initial_split(players_pca, prop = 3/4)
+players_pca_training <- players_pca_split %>% training()   # extract training rows
+players_pca_test     <- players_pca_split %>% testing()    # extract testing rows
+
+# Get the row indices for train/test so we can label them in the full dataset
+train_index <- as.integer(rownames(players_pca_training))
+test_index  <- as.integer(rownames(players_pca_test))
+
+# Add a "split" label back into the full players_pca data frame
+players_pca[train_index, "split"] <- "Train Split"
+players_pca[test_index,  "split"] <- "Test Split"
+
+# Convert to character (tidymodels stores split as factor)
+players_pca$split <- as.character(players_pca$split)
+```
+
+## Excercise 5 
+After modifying data, we could color/shape them differently to highlight whether a player belongs to training or testing data.
+```{r eval=FALSE}
+# TODO: Visualize training vs test points in PCA space
+fig <- _____(
+  data = players_pca,
+  x = ~PC1, 
+  y = ~PC2,
+  type = "_____",
+  mode = "_____",
+  alpha = 0.5,              
+  color = ~split,
+  colors = c("Train Split" ="lightyellow", 
+             "Test Split"  = "lightpink"),
+  
+  symbol = ~_____,                   # map shape to Train vs Test
+  symbols = c("circle-dot",
+              "square"),  # two different point styles
+  
+  marker = list(
+    size = 10,
+    line = list(color = "black", width = 1) # outline each point
+  )
+)
+
+fig
+```
+
+Here's what the final work would look like:
+```{r}
+# Visualize training vs test points in PCA space
+fig <- plot_ly(
+  data = players_pca,
+  x = ~PC1, 
+  y = ~PC2,
+  type = "scatter",
+  mode = "markers",
+  alpha = 0.5,                       # semi-transparent points
+  
+  color = ~split,
+  colors = c("Train Split" ="lightyellow", 
+             "Test Split"  = "lightpink"),
+  
+  symbol = ~split,                   # map shape to Train vs Test
+  symbols = c("circle-dot", "square"),  # two different point styles
+  
+  marker = list(
+    size = 10,
+    line = list(color = "black", width = 1) # outline each point
+  )
+)
+
+fig
+```
+
+
+We have already computed, for each point on a grid in PCA space, the distance to the nearest cluster center and stored it in heatmap_matrix. Your task is to visualize this as a Plotly heatmap.
+
+
+```{r}
+# --- Preprocessing Code ---
+# Compute cluster centers in the *standardized* feature space
+centers <- players_scaled %>%
+  mutate(cluster = players_pca_clusters$cluster) %>%  # add cluster labels
+  group_by(cluster) %>%                               # group by cluster
+  summarise(across(everything(), mean))               # compute mean of each feature
+
+# Create a regular grid covering the PCA plot area (for heatmap evaluation)
+xrange <- seq(min(players_pca$PC1), max(players_pca$PC1), by = 0.03)
+yrange <- seq(min(players_pca$PC2), max(players_pca$PC2), by = 0.03)
+
+# All combinations of grid coordinates (PC1, PC2)
+grid <- expand.grid(PC1 = xrange, PC2 = yrange)
+
+# Compute cluster centers directly in PCA space (for distance calculations)
+pca_centers <- players_pca_clusters %>%
+  group_by(cluster) %>%
+  summarise(PC1 = mean(PC1), PC2 = mean(PC2))
+
+# For each grid point, compute distance to each PCA cluster center
+distance_matrix <- sapply(1:nrow(pca_centers), function(k) {
+  sqrt((grid$PC1 - pca_centers$PC1[k])^2 +
+       (grid$PC2 - pca_centers$PC2[k])^2)
+})
+
+# The heatmap value = distance to the *nearest* cluster center
+grid$closest_dist <- apply(distance_matrix, 1, min)
+
+# Turn vector into a matrix that matches plotly's heatmap structure
+heatmap_matrix <- matrix(grid$closest_dist, nrow = length(xrange))
+```
+
+## Excercise 6
+Goal: fill in the missing pieces in the plot_ly() call so that:
+	-	the x-axis uses the PCA grid xrange
+	-	the y-axis uses yrange
+	-	the color of each cell corresponds to heatmap_matrix
+	-	the plot shows a heatmap with a meaningful title and axis labels
+
+```{r eval=FALSE}
+# TODO: Use plotly to visualize the distance-to-center as a heatmap
+plot_ly(
+  x = ___,          # TODO: x-axis grid (PC1 values)
+  y = ___,          # TODO: y-axis grid (PC2 values)
+  z = ___,          # TODO: matrix of values to color by
+  type = "____",    # TODO: choose the correct plot type
+  colorscale = "____"  # TODO: try "Viridis", "Cividis", or "RdBu"
+) %>%
+  layout(
+    title = "_____",              # TODO: choose an informative title
+    xaxis = list(title = "_____"),# TODO: x-axis label
+    yaxis = list(title = "_____") # TODO: y-axis label
+  )
+```
+
+```{r}
+# Plot interactive heatmap of "cluster confidence" (closer = brighter)
+plot_ly(
+  x = xrange,
+  y = yrange,
+  z = heatmap_matrix,
+  type = "heatmap",
+  colorscale = "Viridis"
+) %>%
+  plotly::layout(
+    title = "Cluster Confidence (Distance to Nearest Center)",
+    xaxis = list(title = "PC1"),
+    yaxis = list(title = "PC2")
+  )
+```
+
+
