@@ -6,16 +6,18 @@ execute:
   echo: true
 ---
 
-**Learning objectives**
+**Introduction**
 
-By the end of this tutorial, you will be able to:
+This .qmd is a hands-on tutorial that walks learners through building interactive visuals in plotly with an unsupervised player-clustering workflow in R. 
 
-- Load and explore CS2 match player statistics in R.
-- Select and preprocess numeric features for clustering.
-- Perform k-means clustering using tidymodels-style preprocessing.
-- Use PCA to visualize players in two dimensions.
-- Build several **interactive plotly visualizations** step by step (raw stats, PCA space, and clusters).
-- Interpret and summarize cluster “player types”.
+We will go over this list of skills: 
+
+- Build interactive scatterplots from scratch with plot_ly().
+- Map data to aesthetics: x, y, color, symbol, and text.
+- Customize marker appearance via the marker list.
+- Use layout() to control titles, axis labels, and legend titles.
+- Visualize categorical structure with color and symbol mappings.
+- Create interactive heatmaps with a chosen colorscale over a grid.
 
 ---
 
@@ -203,7 +205,7 @@ A bit of refreshing:
 - We must choose the number of clusters `k`.
 
 ```{r}
-# Pick a number for k
+# Pick a number for k you like
 k = 4
 
 km = kmeans(as.matrix(players_scaled), centers = k, nstart = 25)
@@ -236,10 +238,7 @@ plot_ly(
   text = ~paste(
     "Player:", _______,         # TODO: Insert player_name
     "<br>Team:", _______,       # TODO: Insert team
-    "<br>Kills:", _______,      # TODO: Insert kills
-    "<br>Deaths:", _______,     # TODO: Insert deaths
-    "<br>ADR:", _______,        # TODO: Insert adr
-    "<br>Perf Score:", _______  # TODO: Insert performance_score
+    _____________,      # TODO: Add any variables you want to explore
   ),
   hoverinfo = "text"
 ) %>%
@@ -370,8 +369,9 @@ fig <- plot_ly(
 fig
 ```
 
+You now have a full clustering workflow + interactive viz.
 
-We have already computed, for each point on a grid in PCA space, the distance to the nearest cluster center and stored it in heatmap_matrix. Your task is to visualize this as a Plotly heatmap.
+Optional: We have already computed, for each point on a grid in PCA space, the distance to the nearest cluster center and stored it in heatmap_matrix. Your task is to visualize this as a Plotly heatmap.
 
 
 ```{r}
