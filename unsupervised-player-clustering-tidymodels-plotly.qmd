@@ -8,7 +8,7 @@ execute:
 
 **Introduction**
 
-This .qmd is a hands-on tutorial that walks learners through building interactive visuals in plotly with an unsupervised player-clustering workflow in R. 
+This .qmd is a 45-minute hands-on tutorial that walks learners through building interactive visuals in plotly with an unsupervised player-clustering workflow in R. 
 
 We will go over this list of skills: 
 
@@ -34,7 +34,7 @@ library(plotly)
 Set a seed for reproducibility so that random steps (like k-means initialization) give the same results each time.
 
 ```{r, message=FALSE}
-set.seed(123)
+set.seed(456)
 tidymodels_prefer()
 ```
 
@@ -112,19 +112,19 @@ ggplot(players_pca, aes(x = PC1, y = PC2)) +
 ```
 
 ```{r eval=FALSE}
-#TODO: Store the graph as p
+# Your turn: save the ggplot above into an object called p
 ```
 
 The plotly package can easily turn ggplot-graphs to interactive by wrapping ggplotly around the plot
 ```{r eval=FALSE}
-#TODO: fill in the blank
+# Now wrap your saved plot to make it interactive
 ggplotly(___)
 ```
 
 ## Excercise 2
 To adjust more details, you can also use plotly directly to draw from scratch: 
 ```{r eval=FALSE}
-# TODO: fill in the blank
+# Give plotly the data and axes you want to explore
 plot_ly(
   data = ___,
   x = ~___,
@@ -154,15 +154,15 @@ plot_ly(
   x = ~PC1, y = ~PC2,
   type = "scatter",
   mode = "markers",
-  # TODO: pick a size and opacity
+  # Pick a point size and opacity
   marker = list(size = ___, opacity = ___),
-  # TODO: map color to performance_score 
+  # Map color to a variable 
   color = ~___,
-  #TODO: show player_name and kills when hover
+  # Make hover text show player_name and kills 
   text = ~paste("Player:", ___,
                 "<br>Kills:", ___)) %>%
   plotly::layout(
-    # TODO: complete the layout
+    # Finish the layout with a title and axes labels
     title = ___,
     xaxis = list(title = "PC1"),
     yaxis = ___(title = "PC2")
@@ -371,6 +371,33 @@ fig
 
 You now have a full clustering workflow + interactive viz.
 
+## Excercise 6
+
+Goal: change mapping and hover line to answer a question you care about.
+
+```{r}
+plot_ly(
+  data = players_pca,
+  x = ~PC1, y = ~PC2, # change this to what you want to learn
+  type = "scatter", mode = "markers",
+  color = ~first_kills,          # change this to your stat
+  marker = list(size = ~avg_equipment_value_per_round, opacity = 0.6),
+  text = ~paste(
+    "Player:", player_name,
+    "<br>First kills:", first_kills # edit or swap this line
+  ),
+  hoverinfo = "text"
+) %>%
+  layout(title = "Open-end Question") # Change this to your question
+```
+
+Your task:
+1) Swap at least one mapped variable to fit your question.
+2) Add/change one hover text line.
+3) Write two bullet observations about the pattern you see.
+
+---
+
 Optional: We have already computed, for each point on a grid in PCA space, the distance to the nearest cluster center and stored it in heatmap_matrix. Your task is to visualize this as a Plotly heatmap.
 
 
@@ -407,7 +434,7 @@ grid$closest_dist <- apply(distance_matrix, 1, min)
 heatmap_matrix <- matrix(grid$closest_dist, nrow = length(xrange))
 ```
 
-## Excercise 6
+## Excercise 7
 Goal: fill in the missing pieces in the plot_ly() call so that:
 	-	the x-axis uses the PCA grid xrange
 	-	the y-axis uses yrange
@@ -446,4 +473,12 @@ plot_ly(
   )
 ```
 
+# Feedback and Change
 
+The learner find the topic interesting, but during the tutorial, PC1 and PC2 had no inherent meaning. 
+
+The excercise is mostly fill in the blank. In other excercise in class, sometimes there are open ended or reflect questions.
+
+Also, the difficulty from 4 and after are really hard.
+
+To change, I make the comments more specific to what learners need to do. I also add one open ended question at first and last part so there're more freedom exploring the data. I also change some question's x and y mapping to what the learner want. What I notice but the learner didn't point out, is that sometimes the comments are really nothing other than TODO, so I make it more of a story telling tone that makes it more interesting to finish. 
