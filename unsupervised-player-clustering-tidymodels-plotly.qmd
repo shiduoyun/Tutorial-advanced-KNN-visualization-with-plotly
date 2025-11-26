@@ -482,3 +482,6 @@ The excercise is mostly fill in the blank. In other excercise in class, sometime
 Also, the difficulty from 4 and after are really hard.
 
 To change, I make the comments more specific to what learners need to do. I also add one open ended question at first and last part so there're more freedom exploring the data. I also change some question's x and y mapping to what the learner want. What I notice but the learner didn't point out, is that sometimes the comments are really nothing other than TODO, so I make it more of a story telling tone that makes it more interesting to finish. 
+
+# AI Statement
+Codex is used to fix grammar.
